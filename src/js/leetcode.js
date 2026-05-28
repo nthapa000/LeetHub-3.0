@@ -66,6 +66,18 @@ function getTodaysDate() {
   return `${formattedMonth}-${formattedDay}-${year}`;
 }
 
+/* returns today's date in "DD Month YYYY" format (e.g., "26 May 2026") */
+function getTodaysDateFormatted() {
+  const today = new Date();
+  const day = today.getDate();
+  const year = today.getFullYear();
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+  const month = monthNames[today.getMonth()];
+
+  return `${day} ${month} ${year}`;
+}
+
 /* returns time in hh-mm-ss format */
 function getTime() {
   const today = new Date();
@@ -111,7 +123,9 @@ function constructGitHubPath(
   useDifficultyFolder,
   useLanguageFolder = false,
 ) {
-  const filePath = problem ? `${problem}/${filename}` : `${filename}`;
+  const todayDate = getTodaysDateFormatted();
+  const folderName = problem ? `${todayDate}-${problem}` : problem;
+  const filePath = folderName ? `${folderName}/${filename}` : `${filename}`;
   if (useLanguageFolder) {
     const language = last_language;
     console.log('Language:', language);
@@ -1627,7 +1641,9 @@ setTimeout(() => {
 async function appendProblemToReadme(topic, markdownFile, hook, problem) {
   const { useDifficultyFolder = false } = await chrome.storage.local.get('useDifficultyFolder');
   const { useLanguageFolder = false } = await chrome.storage.local.get('useLanguageFolder');
-  const filePath = problem ? `${problem}/` : '';
+  const todayDate = getTodaysDateFormatted();
+  const folderName = problem ? `${todayDate}-${problem}` : problem;
+  const filePath = folderName ? `${folderName}/` : '';
 
   let path = '';
   if (useLanguageFolder) {
@@ -1869,13 +1885,14 @@ async function getLastCommitMessage(problemName) {
     // because the stats might be incomplete or outdated
 
     // Construct the path for the problem folder based on user settings
-    let folderPath = actualProblemName;
+    const todayDate = getTodaysDateFormatted();
+    let folderPath = `${todayDate}-${actualProblemName}`;
     
     // If using difficulty folders, we need to know the difficulty
     // For now, let's try to fetch commits for the problem folder regardless of organization
     if (useDifficultyFolder || useLanguageFolder) {
       // For complex folder structures, we'll search commits more broadly
-      folderPath = problemName; // We'll search for any commits containing this problem name
+      folderPath = `${todayDate}-${problemName}`; // We'll search for any commits containing this problem name
     }
 
     // Fetch commits from GitHub API for this problem folder
