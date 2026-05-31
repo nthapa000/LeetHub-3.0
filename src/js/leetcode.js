@@ -373,6 +373,36 @@ const checkAlreadyCompleted = async problemName => {
   return stats?.shas?.[problemName] ?? false;
 };
 
+/**
+ * Finds the next available filename by appending a numeric suffix if the base filename already exists.
+ * For example, if "0001-two-sum.py" exists, this will return "0001-two-sum-1.py"
+ * @param {string} problemName - Problem slug (e.g., "0001-two-sum")
+ * @param {string} baseFileName - Base filename without extension (e.g., "0001-two-sum")
+ * @param {string} language - Language extension (e.g., ".py")
+ * @param {Object} stats - Stats object containing shas information
+ * @returns {string} - The available filename to use
+ */
+const findAvailableFileName = (problemName, baseFileName, language, stats) => {
+  // Check if base filename already exists
+  const baseFileNameWithExt = `${baseFileName}${language}`;
+  if (!stats?.shas?.[problemName]?.[baseFileNameWithExt]) {
+    return baseFileNameWithExt;
+  }
+
+  // If it exists, find the next available number
+  let counter = 1;
+  while (counter <= 999) {
+    const newFileName = `${baseFileName}-${counter}${language}`;
+    if (!stats?.shas?.[problemName]?.[newFileName]) {
+      return newFileName;
+    }
+    counter++;
+  }
+
+  // Fallback (should rarely happen)
+  return `${baseFileName}-${Date.now()}${language}`;
+};
+
 /* Main function for updating code on GitHub Repo */
 /* Read from existing file on GitHub */
 /* Discussion posts prepended at top of README */
@@ -568,13 +598,8 @@ return fetch(URL, options)
     if (res.status === 200 || res.status === 201) {
       return res.json();
     } else {
-      console.log(`Fetch failed with status: ${res.status}`);
-      return {};
+      throw new Error('' + res.status);
     }
-  })
-  .catch(err => {
-    console.log(`Fetch error: ${err.message}`);
-    return {};
   });
 }
 
@@ -1512,7 +1537,7 @@ const loader = (leetCode, suffix) => {
         throw new Error('Could not find language');
       }
       last_language = leetCode.getLanguage();
-      
+
       /* Upload README */
       const updateReadMe = await chrome.storage.local.get('stats').then(({ stats }) => {
         const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
@@ -1559,13 +1584,19 @@ const loader = (leetCode, suffix) => {
         await chrome.storage.local.get('useTimestampFilename');
 
       let fileName;
+      let baseFileName;
+
       if (useTimestampFilename) {
         const timestamp = `${getTodaysDate()}-${getTime()}`.replace(/[:\s]/g, '--');
-        fileName = suffix
-          ? `${problemName}${suffix}-${timestamp}${language}`
-          : `${problemName}-${timestamp}${language}`;
+        baseFileName = suffix
+          ? `${problemName}${suffix}-${timestamp}`
+          : `${problemName}-${timestamp}`;
+        fileName = `${baseFileName}${language}`;
       } else {
-        fileName = suffix ? `${problemName}${suffix}${language}` : `${problemName}${language}`;
+        baseFileName = suffix ? `${problemName}${suffix}` : problemName;
+        // Get stats to check for existing files and auto-generate suffix if needed
+        const { stats } = await chrome.storage.local.get('stats');
+        fileName = findAvailableFileName(problemName, baseFileName, language, stats);
       }
 
       /* Upload code to Git */
@@ -1574,7 +1605,7 @@ const loader = (leetCode, suffix) => {
       /* Group problem into its relevant topics */
       const updateRepoReadMe = updateReadmeTopicTagsWithProblem(
         leetCode.questionDetails?.topicTags,
-        problemName
+        problemName,
       );
 
       await Promise.all([updateReadMe, updateNotes, updateCode, updateRepoReadMe]);
@@ -1593,7 +1624,6 @@ const loader = (leetCode, suffix) => {
     }
   }, 1000);
 };
-
 
 // Use MutationObserver to determine when the submit button elements are loaded
 const observer = new MutationObserver(function (_mutations, observer) {
@@ -1628,7 +1658,6 @@ setTimeout(() => {
     subtree: true,
   });
 }, 2000);
-
 
 /**
  * @param {string} topic - Topic to which the problem will be added.

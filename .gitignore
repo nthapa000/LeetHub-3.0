@@ -1,4 +1,5 @@
 .env
+src/js/secrets.js
 build/*
 node_modules
 .vscode

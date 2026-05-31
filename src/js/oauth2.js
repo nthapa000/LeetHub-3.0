@@ -1,7 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 const oAuth2 = (() => {
   const AUTHORIZATION_URL = 'https://github.com/login/oauth/authorize';
-  const CLIENT_ID = 'Ov23li1ST8W22G7rRSY4';
+  const CLIENT_ID = SECRETS.GITHUB_CLIENT_ID;
   const REDIRECT_URL = 'https://github.com/';
   const SCOPES = ['repo'];
 
